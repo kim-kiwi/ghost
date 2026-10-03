@@ -1,6 +1,7 @@
 package ghost
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -8,10 +9,10 @@ import (
 )
 
 type CollectionOfResource[T any] interface {
-	Create(r T) (int64, error)
-	Get(id int64) (T, error)
-	Delete(id int64) error
-	List() ([]T, error)
+	Create(ctx context.Context, r T) (int64, error)
+	Get(ctx context.Context, id int64) (T, error)
+	Delete(ctx context.Context, id int64) error
+	List(ctx context.Context) ([]T, error)
 }
 
 type CreateRes struct {
@@ -49,7 +50,7 @@ func CollectionWithMiddleware[T any](mux *http.ServeMux, path string, collection
 			http.Error(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
-		id, create_err := collection.Create(req)
+		id, create_err := collection.Create(r.Context(), req)
 		if create_err != nil {
 			fmt.Println(create_err)
 			http.Error(w, "Failed to Create", http.StatusBadRequest)
@@ -66,7 +67,7 @@ func CollectionWithMiddleware[T any](mux *http.ServeMux, path string, collection
 			http.Error(w, "Invalid ID", http.StatusBadRequest)
 			return
 		}
-		f, read_err := collection.Get(id)
+		f, read_err := collection.Get(r.Context(), id)
 		if read_err != nil {
 			fmt.Println(read_err)
 			http.Error(w, "Failed to Read", http.StatusBadRequest)
@@ -82,7 +83,7 @@ func CollectionWithMiddleware[T any](mux *http.ServeMux, path string, collection
 			http.Error(w, "Invalid ID", http.StatusBadRequest)
 			return
 		}
-		delete_err := collection.Delete(id)
+		delete_err := collection.Delete(r.Context(), id)
 		if delete_err != nil {
 			fmt.Println(delete_err)
 			http.Error(w, "Failed to Read", http.StatusBadRequest)
@@ -91,7 +92,7 @@ func CollectionWithMiddleware[T any](mux *http.ServeMux, path string, collection
 		w.WriteHeader(http.StatusOK)
 	}))
 	mux.HandleFunc(fmt.Sprintf("GET /%s", path), middleware(func(w http.ResponseWriter, r *http.Request) {
-		f, list_err := collection.List()
+		f, list_err := collection.List(r.Context())
 		if list_err != nil {
 			fmt.Println(list_err)
 			http.Error(w, "Failed to List", http.StatusBadRequest)
